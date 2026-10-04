@@ -1,0 +1,22 @@
+# Terraform
+.terraform/
+*.tfstate
+
+
+modules/**/.terraform.lock.hcl
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+
+# Secretos y entorno local
+.env
+*.pem
+.aws/
