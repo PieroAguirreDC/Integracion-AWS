@@ -1,0 +1,17 @@
+{
+  "name": "upload-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.899.0",
+    "busboy": "1.6.0"
+  }
+}
