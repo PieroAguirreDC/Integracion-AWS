@@ -1,4 +1,4 @@
-const Busboy = require('busboy');
+﻿const Busboy = require('busboy');
 
 function analizarMultipart(bufferCuerpo, headers) {
   return new Promise((resolve, rechazar) => {
@@ -18,7 +18,6 @@ function analizarMultipart(bufferCuerpo, headers) {
 
     busboy.on('file', (campo, archivo, datos) => {
       if (campo !== 'file') {
-        // Ignora otros campos
         archivo.resume();
         return;
       }
@@ -117,6 +116,51 @@ function obtenerTipoContenido(headers) {
   return tipo.toLowerCase();
 }
 
+function esTipoContenidoValido(tipoContenido) {
+  if (!tipoContenido) {
+    return false;
+  }
+
+  const tipo = tipoContenido.toLowerCase();
+
+  if (tipo.includes('image/jpeg') || tipo.includes('image/jpg')) {
+    return true;
+  }
+  if (tipo.includes('image/png')) {
+    return true;
+  }
+  if (tipo.includes('image/gif')) {
+    return true;
+  }
+  if (tipo.includes('image/webp')) {
+    return true;
+  }
+
+  return false;
+}
+
+function validarTipoYTamano(archivo) {
+  if (!archivo || !archivo.buffer) {
+    throw new Error('Archivo no válido');
+  }
+
+  const tamanoMaximo = 6 * 1024 * 1024; // 6 MB
+
+  if (archivo.buffer.length > tamanoMaximo) {
+    const error = new Error('El archivo supera el tamaño máximo permitido (6 MB)');
+    error.codigoEstado = 413;
+    throw error;
+  }
+
+  if (!esTipoContenidoValido(archivo.contentType)) {
+    const error = new Error('Tipo de contenido no compatible');
+    error.codigoEstado = 400;
+    throw error;
+  }
+
+  return archivo;
+}
+
 exports.handler = async (evento) => {
   try {
     const headers = (evento && evento.headers) || {};
@@ -143,6 +187,19 @@ exports.handler = async (evento) => {
       };
     }
 
+    // Validación de tipo y tamaño (solo por content-type)
+    try {
+      validarTipoYTamano(archivo);
+    } catch (errorValidacion) {
+      const codigo = errorValidacion.codigoEstado || 400;
+      const mensajeValidacion = errorValidacion.message || 'Solicitud incorrecta';
+      return {
+        statusCode: codigo,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ error: mensajeValidacion }),
+      };
+    }
+    
     return {
       statusCode: 501,
       headers: { 'content-type': 'application/json' },
