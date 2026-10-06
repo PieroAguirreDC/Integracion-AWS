@@ -66,6 +66,26 @@ function analizarMultipart(bufferCuerpo, headers) {
   });
 }
 
+function obtenerTipoContenidoDesdeNombre(nombreArchivo) {
+  if (!nombreArchivo) {
+    return null;
+  }
+
+  const punto = nombreArchivo.lastIndexOf('.');
+  if (punto < 0 || punto >= nombreArchivo.length - 1) {
+    return null;
+  }
+
+  const ext = nombreArchivo.slice(punto + 1).toLowerCase();
+
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+
+  return null;
+}
+
 function analizarJsonBase64(cuerpoTexto) {
   let datosParseados;
 
@@ -97,7 +117,7 @@ function analizarJsonBase64(cuerpoTexto) {
   return {
     buffer: bufferArchivo,
     filename: datosParseados.filename,
-    contentType: null,
+    contentType: obtenerTipoContenidoDesdeNombre(datosParseados.filename),
   };
 }
 
@@ -255,6 +275,19 @@ exports.handler = async (evento) => {
     }
 
     // Validación de tipo y tamaño (solo por content-type)
+    try {
+      validarTipoYTamano(archivo);
+    } catch (errorValidacion) {
+      const codigo = errorValidacion.codigoEstado || 400;
+      const mensajeValidacion = errorValidacion.message || 'Solicitud incorrecta';
+      return {
+        statusCode: codigo,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ error: mensajeValidacion }),
+      };
+    }
+
+    // Guardar imagen original en uploads/
     let resultadoSubida;
     try {
       resultadoSubida = await subirArchivoS3(archivo);
