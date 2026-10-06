@@ -1,5 +1,10 @@
 ﻿const Busboy = require('busboy');
 
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const crypto = require('crypto');
+
+const clienteS3 = new S3Client({});
+
 function analizarMultipart(bufferCuerpo, headers) {
   return new Promise((resolve, rechazar) => {
     const tipoContenidoCabecera =
@@ -61,6 +66,26 @@ function analizarMultipart(bufferCuerpo, headers) {
   });
 }
 
+function obtenerTipoContenidoDesdeNombre(nombreArchivo) {
+  if (!nombreArchivo) {
+    return null;
+  }
+
+  const punto = nombreArchivo.lastIndexOf('.');
+  if (punto < 0 || punto >= nombreArchivo.length - 1) {
+    return null;
+  }
+
+  const ext = nombreArchivo.slice(punto + 1).toLowerCase();
+
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+
+  return null;
+}
+
 function analizarJsonBase64(cuerpoTexto) {
   let datosParseados;
 
@@ -92,7 +117,7 @@ function analizarJsonBase64(cuerpoTexto) {
   return {
     buffer: bufferArchivo,
     filename: datosParseados.filename,
-    contentType: null,
+    contentType: obtenerTipoContenidoDesdeNombre(datosParseados.filename),
   };
 }
 
@@ -161,6 +186,68 @@ function validarTipoYTamano(archivo) {
   return archivo;
 }
 
+function obtenerExtension(nombreArchivo, tipoContenido) {
+  if (nombreArchivo) {
+    const punto = nombreArchivo.lastIndexOf('.');
+    if (punto >= 0 && punto < nombreArchivo.length - 1) {
+      const ext = nombreArchivo.slice(punto + 1).toLowerCase();
+      if (ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'gif' || ext === 'webp') {
+        return ext;
+      }
+    }
+  }
+
+  if (tipoContenido) {
+    const tipo = tipoContenido.toLowerCase();
+    if (tipo.includes('image/png')) return 'png';
+    if (tipo.includes('image/gif')) return 'gif';
+    if (tipo.includes('image/webp')) return 'webp';
+    if (tipo.includes('image/jpeg') || tipo.includes('image/jpg')) return 'jpg';
+  }
+
+  return 'jpg';
+}
+
+async function subirArchivoS3(archivo) {
+  const bucket = process.env.S3_BUCKET;
+  const prefijoSubida = process.env.UPLOAD_PREFIX || 'uploads/';
+
+  if (!bucket) {
+    const error = new Error('Variable de entorno S3_BUCKET no configurada');
+    error.codigoEstado = 500;
+    throw error;
+  }
+
+  const id = crypto.randomUUID();
+  const extension = obtenerExtension(archivo.filename, archivo.contentType);
+  const clave = `${prefijoSubida}${id}.${extension}`;
+  const claveProcesada = `processed/${id}_circular.png`;
+
+  const parametros = {
+    Bucket: bucket,
+    Key: clave,
+    Body: archivo.buffer,
+  };
+
+  if (archivo.contentType) {
+    parametros.ContentType = archivo.contentType;
+  }
+
+  try {
+    await clienteS3.send(new PutObjectCommand(parametros));
+  } catch (error) {
+    const err = new Error('Error al guardar el archivo en S3');
+    err.codigoEstado = 500;
+    throw err;
+  }
+
+  return {
+    id,
+    key: clave,
+    processedKey: claveProcesada,
+  };
+}
+
 exports.handler = async (evento) => {
   try {
     const headers = (evento && evento.headers) || {};
@@ -199,17 +286,31 @@ exports.handler = async (evento) => {
         body: JSON.stringify({ error: mensajeValidacion }),
       };
     }
-    
+
+    // Guardar imagen original en uploads/
+    let resultadoSubida;
+    try {
+      resultadoSubida = await subirArchivoS3(archivo);
+    } catch (errorSubida) {
+      const codigo = errorSubida.codigoEstado || 500;
+      const mensajeSubida = errorSubida.message || 'Error interno del servidor';
+      return {
+        statusCode: codigo,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ error: mensajeSubida }),
+      };
+    }
+
     return {
-      statusCode: 501,
+      statusCode: 201,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        message: 'Analizado correctamente (aún no implementado)',
-        filename: archivo.filename,
-        contentType: archivo.contentType,
-        size: archivo.buffer.length,
+        id: resultadoSubida.id,
+        key: resultadoSubida.key,
+        processedKey: resultadoSubida.processedKey,
       }),
     };
+    
   } catch (error) {
     const mensaje = error && error.message ? error.message : 'Solicitud incorrecta';
     return {
