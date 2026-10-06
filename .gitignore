@@ -20,3 +20,7 @@ terraform.rc
 .env
 *.pem
 .aws/
+node_modules/
+package-lock.json
+build/
+*.zip
