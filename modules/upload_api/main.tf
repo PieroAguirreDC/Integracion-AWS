@@ -42,3 +42,24 @@ resource "aws_cloudwatch_log_group" "upload_lambda" {
   name              = "/aws/lambda/${var.project}-${var.env}-upload"
   retention_in_days = var.log_retention_days
 }
+
+resource "aws_lambda_function" "upload" {
+  function_name = "${var.project}-${var.env}-upload"
+  role          = aws_iam_role.upload_lambda_role.arn
+  handler       = "index.handler"
+  runtime       = "nodejs20.x"
+  memory_size   = 256
+  timeout       = 30
+
+  filename         = var.lambda_zip
+  source_code_hash = filebase64sha256(var.lambda_zip)
+
+  environment {
+    variables = {
+      S3_BUCKET     = var.bucket_name
+      UPLOAD_PREFIX = "uploads/"
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.upload_lambda]
+}
