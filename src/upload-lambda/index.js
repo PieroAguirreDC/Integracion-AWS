@@ -192,7 +192,7 @@ function obtenerExtension(nombreArchivo, tipoContenido) {
     if (punto >= 0 && punto < nombreArchivo.length - 1) {
       const ext = nombreArchivo.slice(punto + 1).toLowerCase();
       if (ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'gif' || ext === 'webp') {
-        return ext === 'jpeg' ? 'jpg' : ext;
+        return ext;
       }
     }
   }

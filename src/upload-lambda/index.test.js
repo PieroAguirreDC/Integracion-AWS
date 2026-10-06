@@ -130,6 +130,16 @@ test('JSON base64 válido responde 201 con la extensión del filename', async ()
   assert.strictEqual(llamadas[0].input.ContentType, 'image/png');
 });
 
+test('la extensión jpeg del filename se conserva en la clave', async () => {
+  const evento = await construirMultipart(PNG_VALIDO, 'foto.jpeg', 'image/jpeg');
+
+  const respuesta = await handler(evento);
+  const cuerpo = obtenerCuerpo(respuesta);
+
+  assert.strictEqual(respuesta.statusCode, 201);
+  assert.strictEqual(cuerpo.key, `${PREFIJO_PRUEBA}${cuerpo.id}.jpeg`);
+});
+
 test('tipo de contenido no compatible responde 400', async () => {
   const evento = {
     headers: { 'content-type': 'application/pdf' },
