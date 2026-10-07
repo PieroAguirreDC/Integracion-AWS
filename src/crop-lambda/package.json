@@ -1,0 +1,13 @@
+{
+  "name": "crop-lambda",
+  "version": "1.0.0",
+  "description": "Procesa imágenes desde SQS, recorta y sube a S3",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.899.0",
+    "sharp": "0.33.2"
+  }
+}
