@@ -1,4 +1,3 @@
-# Reemplazar 723300665555 por el id de la cuenta AWS (sale en el output de tfstate-backend/).
 bucket       = "image-processor-tfstate-723300665555"
 key          = "image-processor/dev/terraform.tfstate"
 region       = "us-east-1"
