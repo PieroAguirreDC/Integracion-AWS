@@ -22,3 +22,5 @@ terraform.rc
 .aws/
 node_modules/
 package-lock.json
+build/
+*.zip
