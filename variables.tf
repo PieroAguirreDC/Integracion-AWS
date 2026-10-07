@@ -1,7 +1,7 @@
 variable "project" {
   description = "Nombre del proyecto, se usa como prefijo de todos los recursos."
   type        = string
-  default     = "procesador-de-imagen"
+  default     = "image-processor"
 }
 
 variable "env" {
